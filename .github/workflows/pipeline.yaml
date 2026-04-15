@@ -1,0 +1,81 @@
+name: Gatekeeper CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - '**'
+  pull_request:
+    branches:
+      - '**'
+
+jobs:
+  # JOB 1—Linter
+
+  linter:
+    name: Lint Codebase
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install linting dependencies
+        run: pip install flake8
+
+      - name: Run flake8 linter
+        run: flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+
+
+  train:
+    name: GPU Model Training
+    runs-on: ubuntu-latest   
+    needs: linter            
+
+
+    if: |
+      github.ref == 'refs/heads/main' &&
+      contains(github.event.head_commit.message, '[run-train]')
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # ── Main training step ──────────────────
+      - name: Run model training
+        id: training
+        run: |
+          echo "starting GPU-accelerated training job"
+          echo "Branch : ${{ github.ref }}"
+          echo "Commit : ${{ github.event.head_commit.message }}"
+          python -c "print('Training complete — model saved to /tmp/model.pt')"
+
+      # ── On failure: capture logs ────────────
+      - name: Capture error logs on failure
+        if: failure()
+        run: |
+          echo "=== Training Job Failed ===" > error_logs.txt
+          echo "Timestamp  : $(date -u)" >> error_logs.txt
+          echo "Branch     : ${{ github.ref }}" >> error_logs.txt
+          echo "Commit SHA : ${{ github.sha }}" >> error_logs.txt
+          echo "Commit Msg : ${{ github.event.head_commit.message }}" >> error_logs.txt
+          echo "Runner OS  : ${{ runner.os }}" >> error_logs.txt
+          echo "" >> error_logs.txt
+          echo "--- Review the Actions log above for the full traceback ---" >> error_logs.txt
+
+      - name: Upload error logs as artifact
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: error-logs
+          path: error_logs.txt
+          retention-days: 7
+
+      # ── Always: cleanup ─────────────────────
+      - name: Cleanup temporary cloud volumes
+        if: always()
+        run: echo "Cleaning up temporary cloud volumes..."
