@@ -10,7 +10,6 @@ on:
 
 jobs:
   # JOB 1—Linter
-
   linter:
     name: Lint Codebase
     runs-on: ubuntu-latest
