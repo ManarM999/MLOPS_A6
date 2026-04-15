@@ -52,6 +52,7 @@ jobs:
           echo "Branch : ${{ github.ref }}"
           echo "Commit : ${{ github.event.head_commit.message }}"
           python -c "print('Training complete — model saved to /tmp/model.pt')"
+          exit 1
 
       # ── On failure: capture logs ────────────
       - name: Capture error logs on failure
